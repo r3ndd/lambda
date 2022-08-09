@@ -1,0 +1,3 @@
+Collapse nested applications with no right term 
+Fix seg fault on fls
+Implement native bools and nums
