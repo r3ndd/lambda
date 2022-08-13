@@ -1,8 +1,11 @@
-let tru = !x.!y.x;
-let fls = !x.!y.y;
+let true = !x.!y.x;
+let false = !x.!y.y;
 
 print ((!x.!y.x)) !a.a;
 print (!x.!y.x) !x.y; 
 print (!x.!y.x) !y.y;
-print tru a b;
-print fls a b;
+
+print true a b;
+print false a b;
+printbool true false true;
+printbool false false true;

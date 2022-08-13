@@ -13,10 +13,10 @@ using namespace std;
 
 string reserved[] = {"END_OF_FILE", "ERROR",     "NEWLINE", "LET", "PRINT",
                      "EQUAL",       "SEMICOLON", "LAMBDA",  "DOT", "LPAREN",
-                     "RPAREN",      "ID",        "NUM",     "BOOL"};
+                     "RPAREN",      "ID",        "NUM"};
 
-map<string, int> keywords = {{"let", 2},       {"print", 3}, {"printnum", 3},
-                             {"printbool", 3}, {"true", 12}, {"false", 12}};
+map<string, int> keywords = {
+    {"let", 2}, {"print", 3}, {"printnum", 3}, {"printbool", 3}};
 
 map<string, int> specialSequences = {{"/*", 13}, {"*/", 14}};
 

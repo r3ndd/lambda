@@ -28,7 +28,7 @@ class Parser {
     Lexer lexer;
     map<string, Term *> definitions;
     vector<Term *> reductions;
-    vector<int> printTypes;
+    vector<PrintType> printTypes;
     int renameCount;
 
     void syntaxError();
@@ -43,8 +43,6 @@ class Parser {
     PrintType parsePrint();
     Term *parseTerm();
     string parsePrimary();
-    bool termToBool(Term *term);
-    int termToNum(Term *term);
     void parseComment();
     bool betaReduce(Term *term);
     void getFreeVars(Term *term, map<string, bool> &freeVars);
@@ -55,6 +53,8 @@ class Parser {
     string nextRenamedVar();
     Term *copyTerm(Term *term);
     string termToString(Term *term);
+    bool termToBool(Term *term);
+    int termToNum(Term *term);
 };
 
 #endif

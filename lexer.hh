@@ -19,7 +19,6 @@ typedef enum {
     RPAREN,
     ID,
     NUM,
-    BOOL,
 } TokenType;
 
 class Token {

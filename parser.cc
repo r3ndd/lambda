@@ -37,7 +37,17 @@ void Parser::ReduceAndPrint() {
             reduce |= betaReduce(reduction);
         }
 
-        cout << termToString(reduction) << endl;
+        switch (printTypes[i]) {
+            case PRINT_FUNC:
+                cout << termToString(reduction) << endl;
+                break;
+            case PRINT_BOOL:
+                cout << termToBool(reduction) << endl;
+                break;
+            case PRINT_NUM:
+                cout << termToNum(reduction) << endl;
+                break;
+        }
     }
 }
 
@@ -136,7 +146,7 @@ Term *Parser::parseTerm() {
             t.tokenType != END_OF_FILE) {
             term->rTerm = parseTerm();
         }
-    } else if (t.tokenType == ID || t.tokenType == NUM || t.tokenType == BOOL) {
+    } else if (t.tokenType == ID || t.tokenType == NUM) {
         term->type = PRIMARY;
         term->var = parsePrimary();
         t = lexer.Peek();
@@ -154,8 +164,7 @@ Term *Parser::parseTerm() {
 string Parser::parsePrimary() {
     Token t = lexer.GetToken();
 
-    if (t.tokenType != ID && t.tokenType != NUM && t.tokenType != BOOL)
-        syntaxError();
+    if (t.tokenType != ID && t.tokenType != NUM) syntaxError();
 
     return t.lexeme;
 }
@@ -342,8 +351,8 @@ Term *Parser::copyTerm(Term *term) {
     Term *newTerm = new Term;
     newTerm->type = term->type;
     newTerm->var = term->var;
-    newTerm->lTerm = term->lTerm;
-    newTerm->rTerm = term->rTerm;
+    newTerm->lTerm = copyTerm(term->lTerm);
+    newTerm->rTerm = copyTerm(term->rTerm);
 
     return newTerm;
 }
@@ -387,7 +396,7 @@ bool Parser::termToBool(Term *term) {
     else if (varB.compare(varC) == 0)
         return false;
     else
-        syntaxError();
+        runtimeError();
 }
 
 int Parser::termToNum(Term *term) { return 0; }
