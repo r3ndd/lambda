@@ -1,8 +1,4 @@
 let tru = !x.!y.x;
 let fls = !x.!y.y;
 
-print (!x.!y.x) !a.a;
-print (!x.!y.x) !x.y; 
-print (!x.!y.x) !y.y; 
-print tru a b;
 print fls a b;

@@ -163,9 +163,17 @@ bool Parser::betaReduce(Term *term) {
 
     if (term->type == APPLICATION) {
         if (term->rTerm == NULL) {
-            changed = betaReduce(term->lTerm);
+            changed |= betaReduce(term->lTerm);
         } else if (term->lTerm->type != ABSTRACTION) {
-            changed = betaReduce(term->lTerm);
+            if (term->lTerm->type == APPLICATION &&
+                term->lTerm->rTerm == NULL) {
+                Term *oldTerm = term->lTerm;
+                term->lTerm = oldTerm->lTerm;
+                delete oldTerm;
+                changed = true;
+            }
+
+            changed |= betaReduce(term->lTerm);
             changed |= betaReduce(term->rTerm);
         } else {
             Term *application = term;
@@ -196,38 +204,16 @@ bool Parser::betaReduce(Term *term) {
             application->lTerm = abstraction->lTerm;
             delete abstraction;
             delete arg;
-            changed = true;
+            changed |= true;
         }
     } else if (term->type == PRIMARY) {
         if (term->rTerm != NULL) {
-            changed = betaReduce(term->rTerm);
+            changed |= betaReduce(term->rTerm);
         }
     }
 
     return changed;
 }
-
-// void Parser::alphaRename(Term *term, string var) {
-//     if (term->type == ABSTRACTION) {
-//         if (term->var.compare(var) != 0) {
-//             alphaRename(term->lTerm, var);
-//         }
-//     } else if (term->type == APPLICATION) {
-//         alphaRename(term->lTerm, var);
-
-//         if (term->rTerm != NULL) {
-//             alphaRename(term->rTerm, var);
-//         }
-//     } else if (term->type == PRIMARY) {
-//         if (term->var.compare(var) == 0) {
-//             term->var += term->var;
-//         }
-
-//         if (term->rTerm != NULL) {
-//             alphaRename(term->rTerm, var);
-//         }
-//     }
-// }
 
 void Parser::getFreeVars(Term *term, map<string, bool> &freeVars) {
     if (term == NULL) return;
@@ -296,6 +282,7 @@ bool Parser::substituteDefs(Term *term) {
         if (definitions.find(term->var) != definitions.end()) {
             term->type = APPLICATION;
             term->lTerm = copyTerm(definitions[term->var]);
+            term->var = "";
             changed = true;
         }
 

@@ -11,9 +11,9 @@
 
 using namespace std;
 
-string reserved[] = {"END_OF_FILE", "ERROR",  "LET", "PRINT",  "EQUAL",
-                     "SEMICOLON",   "LAMBDA", "DOT", "LPAREN", "RPAREN",
-                     "ID",          "NUM",    "BOOL"};
+string reserved[] = {"END_OF_FILE", "ERROR",     "NEWLINE", "LET", "PRINT",
+                     "EQUAL",       "SEMICOLON", "LAMBDA",  "DOT", "LPAREN",
+                     "RPAREN",      "ID",        "NUM",     "BOOL"};
 
 map<string, int> keywords = {{"let", 2},       {"print", 3}, {"printnum", 3},
                              {"printbool", 3}, {"true", 12}, {"false", 12}};
@@ -32,13 +32,13 @@ Lexer::Lexer() {
 
 bool Lexer::skipSpace() {
     char c;
-    bool space_encountered = false;
+    bool spaceEncountered = false;
 
     input.GetChar(c);
     lineNum += (c == '\n');
 
     while (!input.AtEnd() && isspace(c)) {
-        space_encountered = true;
+        spaceEncountered = true;
         input.GetChar(c);
         lineNum += (c == '\n');
     }
@@ -46,7 +46,8 @@ bool Lexer::skipSpace() {
     if (!input.AtEnd()) {
         input.UngetChar(c);
     }
-    return space_encountered;
+
+    return spaceEncountered;
 }
 
 bool Lexer::isKeyword(string s) { return keywords.find(s) != keywords.end(); }
