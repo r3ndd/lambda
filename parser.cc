@@ -160,6 +160,8 @@ string Parser::parsePrimary() {
     return t.lexeme;
 }
 
+void Parser::parseComment() {}
+
 bool Parser::betaReduce(Term *term) {
     if (term == NULL) return false;
     bool changed = false;
@@ -361,7 +363,7 @@ string Parser::termToString(Term *term) {
     }
 }
 
-bool Parser::parseBool(Term *term) {
+bool Parser::termToBool(Term *term) {
     if (term == NULL) runtimeError();
 
     if (term->type == PRIMARY)
@@ -388,4 +390,4 @@ bool Parser::parseBool(Term *term) {
         syntaxError();
 }
 
-int Parser::parseNum(Term *term) { return 0; }
+int Parser::termToNum(Term *term) { return 0; }

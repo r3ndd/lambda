@@ -43,6 +43,9 @@ class Parser {
     PrintType parsePrint();
     Term *parseTerm();
     string parsePrimary();
+    bool termToBool(Term *term);
+    int termToNum(Term *term);
+    void parseComment();
     bool betaReduce(Term *term);
     void getFreeVars(Term *term, map<string, bool> &freeVars);
     void alphaRename(Term *term, const map<string, bool> &freeVars,
@@ -52,8 +55,6 @@ class Parser {
     string nextRenamedVar();
     Term *copyTerm(Term *term);
     string termToString(Term *term);
-    bool parseBool(Term *term);
-    int parseNum(Term *term);
 };
 
 #endif

@@ -18,16 +18,18 @@ string reserved[] = {"END_OF_FILE", "ERROR",     "NEWLINE", "LET", "PRINT",
 map<string, int> keywords = {{"let", 2},       {"print", 3}, {"printnum", 3},
                              {"printbool", 3}, {"true", 12}, {"false", 12}};
 
+map<string, int> specialSequences = {{"/*", 13}, {"*/", 14}};
+
 void Token::Print() {
-    cout << "{" << this->lexeme << " , " << reserved[(int)this->tokenType]
-         << " , " << this->lineNum << "}\n";
+    cout << "{" << lexeme << " , " << reserved[(int)tokenType] << " , "
+         << lineNum << "}\n";
 }
 
 Lexer::Lexer() {
-    this->lineNum = 1;
-    this->tmp.lexeme = "";
-    this->tmp.lineNum = 1;
-    this->tmp.tokenType = ERROR;
+    lineNum = 1;
+    tmp.lexeme = "";
+    tmp.lineNum = 1;
+    tmp.tokenType = ERROR;
 }
 
 bool Lexer::skipSpace() {
@@ -53,8 +55,6 @@ bool Lexer::skipSpace() {
 bool Lexer::isKeyword(string s) { return keywords.find(s) != keywords.end(); }
 
 TokenType Lexer::findKeywordTokenType(string s) {
-    if (!isKeyword(s)) return ERROR;
-
     return (TokenType)keywords[s];
 }
 
@@ -137,19 +137,16 @@ TokenType Lexer::UngetToken(Token tok) {
 Token Lexer::GetToken() {
     char c;
 
-    // if there are tokens that were previously
-    // stored due to UngetToken(), pop a token and
-    // return it without reading from input
     if (!tokens.empty()) {
-        this->tmp = tokens.back();
+        tmp = tokens.back();
         tokens.pop_back();
         return tmp;
     }
 
     skipSpace();
-    this->tmp.lexeme = "";
-    this->tmp.lineNum = this->lineNum;
-    this->tmp.tokenType = END_OF_FILE;
+    tmp.lexeme = "";
+    tmp.lineNum = lineNum;
+    tmp.tokenType = END_OF_FILE;
 
     if (!input.AtEnd())
         input.GetChar(c);
@@ -175,6 +172,38 @@ Token Lexer::GetToken() {
         case ')':
             tmp.tokenType = RPAREN;
             return tmp;
+        case '/':
+            if (input.AtEnd()) {
+                tmp.tokenType = ERROR;
+                return tmp;
+            }
+
+            input.GetChar(c);
+
+            if (c != '*' || input.AtEnd()) {
+                tmp.tokenType = ERROR;
+                return tmp;
+            }
+
+            while (true) {
+                input.GetChar(c);
+
+                if (input.AtEnd()) {
+                    tmp.tokenType = ERROR;
+                    return tmp;
+                }
+
+                if (c != '*') continue;
+                while (c == '*' && !input.AtEnd()) input.GetChar(c);
+                if (c == '/') break;
+
+                if (input.AtEnd()) {
+                    tmp.tokenType = ERROR;
+                    return tmp;
+                }
+            }
+
+            return GetToken();
         default:
             if (isdigit(c)) {
                 input.UngetChar(c);
@@ -182,12 +211,13 @@ Token Lexer::GetToken() {
             } else if (isalpha(c)) {
                 input.UngetChar(c);
                 return scanIdOrKeyword();
-            } else if (input.AtEnd())
+            } else if (input.AtEnd()) {
                 tmp.tokenType = END_OF_FILE;
-            else
+                return tmp;
+            } else {
                 tmp.tokenType = ERROR;
-
-            return tmp;
+                return tmp;
+            }
     }
 }
 
