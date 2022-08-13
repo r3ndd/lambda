@@ -107,6 +107,9 @@ PrintType Parser::parsePrint() {
 Term *Parser::parseTerm() {
     Token t = lexer.Peek();
     Term *term = new Term;
+    term->var = "";
+    term->lTerm = NULL;
+    term->rTerm = NULL;
 
     if (t.tokenType == LAMBDA) {
         term->type = ABSTRACTION;
@@ -159,10 +162,20 @@ string Parser::parsePrimary() {
 
 bool Parser::betaReduce(Term *term) {
     if (term == NULL) return false;
-    bool changed;
+    bool changed = false;
 
     if (term->type == APPLICATION) {
         if (term->rTerm == NULL) {
+            if (term->lTerm->type == APPLICATION) {
+                Term *oldTerm = term->lTerm;
+                term->lTerm = oldTerm->lTerm;
+                term->rTerm = oldTerm->rTerm;
+                delete oldTerm;
+                changed = true;
+
+                betaReduce(term->rTerm);
+            }
+
             changed |= betaReduce(term->lTerm);
         } else if (term->lTerm->type != ABSTRACTION) {
             if (term->lTerm->type == APPLICATION &&
@@ -192,6 +205,8 @@ bool Parser::betaReduce(Term *term) {
                 termToSub = new Term;
                 termToSub->type = PRIMARY;
                 termToSub->var = arg->var;
+                termToSub->lTerm = NULL;
+                termToSub->rTerm = NULL;
                 application->rTerm = arg->rTerm;
             }
 
