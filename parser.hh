@@ -31,10 +31,10 @@ class Parser {
     vector<PrintType> printTypes;
     int renameCount;
 
-    void syntaxError();
-    void runtimeError();
-    void expect(TokenType type);
-    void checkType(Token token, TokenType type);
+    void syntaxError(int lineNum, string msg);
+    void runtimeError(string msg);
+    void expect(TokenType type, string msg);
+    void checkType(Token token, TokenType type, string msg);
     void parseProgram();
     void parseDefList();
     void parseDef();

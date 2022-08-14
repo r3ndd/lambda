@@ -4,24 +4,23 @@
 
 using namespace std;
 
-void Parser::syntaxError() {
-    cout << "SYNTAX ERROR\n";
+void Parser::syntaxError(int lineNum, string msg) {
+    cout << "SYNTAX ERROR (" << lineNum << "): " << msg << "\n";
     exit(1);
 }
 
-void Parser::runtimeError() {
-    cout << "RUNTIME ERROR\n";
+void Parser::runtimeError(string msg) {
+    cout << "RUNTIME ERROR: " << msg << "\n";
     exit(1);
 }
 
-void Parser::expect(TokenType type) {
+void Parser::expect(TokenType type, string msg) {
     Token t = lexer.GetToken();
-
-    if (t.tokenType != type) syntaxError();
+    if (t.tokenType != type) syntaxError(t.lineNum, msg);
 }
 
-void Parser::checkType(Token token, TokenType type) {
-    if (token.tokenType != type) syntaxError();
+void Parser::checkType(Token token, TokenType type, string msg) {
+    if (token.tokenType != type) syntaxError(token.lineNum, msg);
 }
 
 void Parser::ParseInput() { parseProgram(); }
@@ -58,7 +57,7 @@ void Parser::parseProgram() {
     if (t.tokenType == LET) parseDefList();
 
     parseReductionList();
-    expect(END_OF_FILE);
+    expect(END_OF_FILE, "Expected end of file");
 }
 
 void Parser::parseDefList() {
@@ -69,18 +68,18 @@ void Parser::parseDefList() {
 }
 
 void Parser::parseDef() {
-    expect(LET);
+    expect(LET, "Expected 'let'");
 
     Token t = lexer.GetToken();
-    checkType(t, ID);
+    checkType(t, ID, "Expected definition name");
     string var = t.lexeme;
 
-    expect(EQUAL);
+    expect(EQUAL, "Expected '='");
 
     Term *term = parseTerm();
     definitions[var] = term;
 
-    expect(SEMICOLON);
+    expect(SEMICOLON, "Expected semicolon");
 }
 
 void Parser::parseReductionList() {
@@ -100,12 +99,12 @@ void Parser::parseReduction() {
     Term *term = parseTerm();
     reductions.push_back(term);
 
-    expect(SEMICOLON);
+    expect(SEMICOLON, "Expected semicolon");
 }
 
 PrintType Parser::parsePrint() {
     Token t = lexer.GetToken();
-    checkType(t, PRINT);
+    checkType(t, PRINT, "Expected print type");
 
     if (t.lexeme.compare("print") == 0)
         return PRINT_FUNC;
@@ -114,7 +113,7 @@ PrintType Parser::parsePrint() {
     else if (t.lexeme.compare("printbool") == 0)
         return PRINT_BOOL;
 
-    syntaxError();
+    syntaxError(t.lineNum, "Invalid print type");
 }
 
 Term *Parser::parseTerm() {
@@ -128,22 +127,22 @@ Term *Parser::parseTerm() {
         case LAMBDA:
             term->type = ABSTRACTION;
 
-            expect(LAMBDA);
+            expect(LAMBDA, "Expected '!'");
 
             t = lexer.GetToken();
-            checkType(t, ID);
+            checkType(t, ID, "Expected variable name");
             term->var = t.lexeme;
 
-            expect(DOT);
+            expect(DOT, "Expected '.'");
 
             term->lTerm = parseTerm();
             break;
         case LPAREN:
             term->type = APPLICATION;
 
-            expect(LPAREN);
+            expect(LPAREN, "Expected ')'");
             term->lTerm = parseTerm();
-            expect(RPAREN);
+            expect(RPAREN, "Expected ')'");
 
             t = lexer.Peek();
 
@@ -170,7 +169,7 @@ Term *Parser::parseTerm() {
             }
             break;
         default:
-            syntaxError();
+            syntaxError(t.lineNum, "Unable to parse term");
     }
 
     return term;
@@ -178,7 +177,8 @@ Term *Parser::parseTerm() {
 
 string Parser::parsePrimary() {
     Token t = lexer.GetToken();
-    if (t.tokenType != ID && t.tokenType != NUM) syntaxError();
+    if (t.tokenType != ID && t.tokenType != NUM)
+        syntaxError(t.lineNum, "Primary must be alphanumeric");
     return t.lexeme;
 }
 
@@ -410,17 +410,17 @@ string Parser::termToString(Term *term) {
             break;
     }
 
-    syntaxError();
+    runtimeError("Unable to convert term to string");
 }
 
 bool Parser::termToBool(Term *term) {
-    if (term == NULL) runtimeError();
+    if (term == NULL) runtimeError("Unable to convert term to bool");
 
     if (term->type == PRIMARY)
-        runtimeError();
+        runtimeError("A primary cannot be a bool");
     else if (term->type == APPLICATION) {
         if (term->lTerm->type != ABSTRACTION || term->rTerm != NULL)
-            runtimeError();
+            runtimeError("Unable to convert term to bool");
 
         term = term->lTerm;
     }
@@ -428,7 +428,7 @@ bool Parser::termToBool(Term *term) {
     if (term->lTerm->type != ABSTRACTION ||
         term->lTerm->lTerm->type != PRIMARY ||
         term->lTerm->lTerm->rTerm != NULL) {
-        runtimeError();
+        runtimeError("Unable to convert term to bool");
     }
 
     Term *outerAbs = term;
@@ -443,23 +443,23 @@ bool Parser::termToBool(Term *term) {
     else if (varB.compare(varC) == 0)
         return false;
 
-    runtimeError();
+    runtimeError("Unable to convert term to bool");
 }
 
 int Parser::termToNum(Term *term) {
-    if (term == NULL) runtimeError();
+    if (term == NULL) runtimeError("Unable to convert term to number");
 
     if (term->type == PRIMARY)
-        runtimeError();
+        runtimeError("A primary cannot be a number");
     else if (term->type == APPLICATION) {
         if (term->lTerm->type != ABSTRACTION || term->rTerm != NULL)
-            runtimeError();
+            runtimeError("Unable to convert term to number");
 
         term = term->lTerm;
     }
 
     if (term->lTerm->type != ABSTRACTION || term->lTerm->lTerm->type != PRIMARY)
-        runtimeError();
+        runtimeError("Unable to convert term to number");
 
     int num = 0;
     Term *outerAbs = term;
@@ -467,31 +467,35 @@ int Parser::termToNum(Term *term) {
     Term *primary = term->lTerm->lTerm;
     term = primary;
 
-    if (outerAbs->var.compare(innerAbs->var) == 0) runtimeError();
+    if (outerAbs->var.compare(innerAbs->var) == 0)
+        runtimeError("Unable to convert term to number");
 
     while (term->var.compare(outerAbs->var) == 0) {
         num++;
         term = term->rTerm;
 
-        if (term == NULL) runtimeError();
+        if (term == NULL) runtimeError("Unable to convert term to number");
 
         switch (term->type) {
             case PRIMARY:
-                if (term->var.compare(innerAbs->var) != 0) runtimeError();
+                if (term->var.compare(innerAbs->var) != 0)
+                    runtimeError("Unable to convert term to number");
                 break;
             case APPLICATION:
-                if (term->rTerm != NULL) runtimeError();
+                if (term->rTerm != NULL)
+                    runtimeError("Unable to convert term to number");
                 term = term->lTerm;
-                if (term->type != PRIMARY) runtimeError();
+                if (term->type != PRIMARY)
+                    runtimeError("Unable to convert term to number");
                 break;
             case ABSTRACTION:
-                runtimeError();
+                runtimeError("Unable to convert term to number");
                 break;
         }
     }
 
     if (term->var.compare(innerAbs->var) != 0 || term->rTerm != NULL)
-        runtimeError();
+        runtimeError("Unable to convert term to number");
 
     return num;
 }
