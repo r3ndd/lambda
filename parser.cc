@@ -27,7 +27,7 @@ void Parser::checkType(Token token, TokenType type) {
 void Parser::ParseInput() { parseProgram(); }
 
 void Parser::ReduceAndPrint() {
-    for (int i = 0; i < reductions.size(); i++) {
+    for (long unsigned int i = 0; i < reductions.size(); i++) {
         Term *reduction = reductions[i];
         bool reduce = true;
 
@@ -35,6 +35,7 @@ void Parser::ReduceAndPrint() {
             reduce = false;
             reduce |= substituteDefs(reduction);
             reduce |= betaReduce(reduction);
+            reduce |= collapseParentheses(reduction);
         }
 
         switch (printTypes[i]) {
@@ -42,7 +43,7 @@ void Parser::ReduceAndPrint() {
                 cout << termToString(reduction) << endl;
                 break;
             case PRINT_BOOL:
-                cout << termToBool(reduction) << endl;
+                cout << (termToBool(reduction) ? "true" : "false") << endl;
                 break;
             case PRINT_NUM:
                 cout << termToNum(reduction) << endl;
@@ -112,6 +113,8 @@ PrintType Parser::parsePrint() {
         return PRINT_NUM;
     else if (t.lexeme.compare("printbool") == 0)
         return PRINT_BOOL;
+
+    syntaxError();
 }
 
 Term *Parser::parseTerm() {
@@ -121,51 +124,61 @@ Term *Parser::parseTerm() {
     term->lTerm = NULL;
     term->rTerm = NULL;
 
-    if (t.tokenType == LAMBDA) {
-        term->type = ABSTRACTION;
+    switch (t.tokenType) {
+        case LAMBDA:
+            term->type = ABSTRACTION;
 
-        expect(LAMBDA);
+            expect(LAMBDA);
 
-        t = lexer.GetToken();
-        checkType(t, ID);
-        term->var = t.lexeme;
+            t = lexer.GetToken();
+            checkType(t, ID);
+            term->var = t.lexeme;
 
-        expect(DOT);
+            expect(DOT);
 
-        term->lTerm = parseTerm();
-    } else if (t.tokenType == LPAREN) {
-        term->type = APPLICATION;
+            term->lTerm = parseTerm();
+            break;
+        case LPAREN:
+            term->type = APPLICATION;
 
-        expect(LPAREN);
-        term->lTerm = parseTerm();
-        expect(RPAREN);
+            expect(LPAREN);
+            term->lTerm = parseTerm();
+            expect(RPAREN);
 
-        t = lexer.Peek();
+            t = lexer.Peek();
 
-        if (t.tokenType != RPAREN && t.tokenType != SEMICOLON &&
-            t.tokenType != END_OF_FILE) {
-            term->rTerm = parseTerm();
-        }
-    } else if (t.tokenType == ID || t.tokenType == NUM) {
-        term->type = PRIMARY;
-        term->var = parsePrimary();
-        t = lexer.Peek();
+            if (t.tokenType != RPAREN && t.tokenType != SEMICOLON &&
+                t.tokenType != END_OF_FILE) {
+                term->rTerm = parseTerm();
+            }
+            break;
+        case ID:
+        case NUM:
+            if (t.tokenType == ID) {
+                term->type = PRIMARY;
+                term->var = parsePrimary();
+            } else {
+                term->type = APPLICATION;
+                term->lTerm = numToTerm(stoi(parsePrimary()));
+            }
 
-        if (t.tokenType != RPAREN && t.tokenType != SEMICOLON &&
-            t.tokenType != END_OF_FILE) {
-            term->rTerm = parseTerm();
-        }
-    } else
-        syntaxError();
+            t = lexer.Peek();
+
+            if (t.tokenType != RPAREN && t.tokenType != SEMICOLON &&
+                t.tokenType != END_OF_FILE) {
+                term->rTerm = parseTerm();
+            }
+            break;
+        default:
+            syntaxError();
+    }
 
     return term;
 }
 
 string Parser::parsePrimary() {
     Token t = lexer.GetToken();
-
     if (t.tokenType != ID && t.tokenType != NUM) syntaxError();
-
     return t.lexeme;
 }
 
@@ -175,67 +188,91 @@ bool Parser::betaReduce(Term *term) {
     if (term == NULL) return false;
     bool changed = false;
 
-    if (term->type == APPLICATION) {
-        if (term->rTerm == NULL) {
-            if (term->lTerm->type == APPLICATION) {
-                Term *oldTerm = term->lTerm;
-                term->lTerm = oldTerm->lTerm;
-                term->rTerm = oldTerm->rTerm;
-                delete oldTerm;
-                changed = true;
+    switch (term->type) {
+        case APPLICATION:
+            if (term->rTerm == NULL) {
+                changed |= betaReduce(term->lTerm);
+            } else if (term->lTerm->type != ABSTRACTION) {
+                changed |= betaReduce(term->lTerm);
+                changed |= betaReduce(term->rTerm);
+            } else {
+                Term *application = term;
+                Term *abstraction = application->lTerm;
+                Term *arg = application->rTerm;
+                string var = abstraction->var;
+                Term *termToSub;
 
-                betaReduce(term->rTerm);
+                if (arg->type == ABSTRACTION) {
+                    termToSub = arg;
+                    application->rTerm = NULL;
+                } else if (arg->type == APPLICATION) {
+                    termToSub = arg->lTerm;
+                    application->rTerm = arg->rTerm;
+                } else if (arg->type == PRIMARY) {
+                    termToSub = new Term;
+                    termToSub->type = PRIMARY;
+                    termToSub->var = arg->var;
+                    termToSub->lTerm = NULL;
+                    termToSub->rTerm = NULL;
+                    application->rTerm = arg->rTerm;
+                }
+
+                map<string, bool> freeVars;
+                map<string, string> renames;
+                getFreeVars(termToSub, freeVars);
+                alphaRename(abstraction, freeVars, renames);
+                substituteVars(abstraction->lTerm, abstraction->var, termToSub);
+
+                application->lTerm = abstraction->lTerm;
+                delete abstraction;
+                delete arg;
+                changed |= true;
             }
+            break;
+        case PRIMARY:
+            if (term->rTerm != NULL) {
+                changed |= betaReduce(term->rTerm);
+            }
+            break;
+        case ABSTRACTION:
+            break;
+    }
 
-            changed |= betaReduce(term->lTerm);
-        } else if (term->lTerm->type != ABSTRACTION) {
-            if (term->lTerm->type == APPLICATION &&
+    return changed;
+}
+
+bool Parser::collapseParentheses(Term *term) {
+    if (term == NULL) return false;
+    bool changed = false;
+
+    switch (term->type) {
+        case APPLICATION:
+            if (term->rTerm == NULL && term->lTerm->type == APPLICATION &&
                 term->lTerm->rTerm == NULL) {
                 Term *oldTerm = term->lTerm;
                 term->lTerm = oldTerm->lTerm;
                 delete oldTerm;
+
+                changed = true;
+            } else if (term->rTerm != NULL &&
+                       term->lTerm->type == APPLICATION &&
+                       term->lTerm->rTerm == NULL) {
+                Term *oldTerm = term->lTerm;
+                term->lTerm = oldTerm->lTerm;
+                delete oldTerm;
+
                 changed = true;
             }
 
-            changed |= betaReduce(term->lTerm);
-            changed |= betaReduce(term->rTerm);
-        } else {
-            Term *application = term;
-            Term *abstraction = application->lTerm;
-            Term *arg = application->rTerm;
-            string var = abstraction->var;
-            Term *termToSub, *oldLTerm, *oldRTerm;
-
-            if (arg->type == ABSTRACTION) {
-                termToSub = arg;
-                application->rTerm = NULL;
-            } else if (arg->type == APPLICATION) {
-                termToSub = arg->lTerm;
-                application->rTerm = arg->rTerm;
-            } else if (arg->type == PRIMARY) {
-                termToSub = new Term;
-                termToSub->type = PRIMARY;
-                termToSub->var = arg->var;
-                termToSub->lTerm = NULL;
-                termToSub->rTerm = NULL;
-                application->rTerm = arg->rTerm;
-            }
-
-            map<string, bool> freeVars;
-            map<string, string> renames;
-            getFreeVars(termToSub, freeVars);
-            alphaRename(abstraction, freeVars, renames);
-            substituteVars(abstraction->lTerm, abstraction->var, termToSub);
-
-            application->lTerm = abstraction->lTerm;
-            delete abstraction;
-            delete arg;
-            changed |= true;
-        }
-    } else if (term->type == PRIMARY) {
-        if (term->rTerm != NULL) {
-            changed |= betaReduce(term->rTerm);
-        }
+            changed |= collapseParentheses(term->lTerm);
+            changed |= collapseParentheses(term->rTerm);
+            break;
+        case PRIMARY:
+            changed |= collapseParentheses(term->rTerm);
+            break;
+        case ABSTRACTION:
+            changed |= collapseParentheses(term->lTerm);
+            break;
     }
 
     return changed;
@@ -360,16 +397,20 @@ Term *Parser::copyTerm(Term *term) {
 string Parser::termToString(Term *term) {
     if (term == NULL) return "";
 
-    if (term->type == ABSTRACTION) {
-        return ("!" + term->var + "." + termToString(term->lTerm));
-    } else if (term->type == APPLICATION) {
-        return ("(" + termToString(term->lTerm) + ")" +
-                termToString(term->rTerm));
-    } else if (term->type == PRIMARY) {
-        string res = term->var;
-        if (term->rTerm != NULL) res += " " + termToString(term->rTerm);
-        return res;
+    switch (term->type) {
+        case ABSTRACTION:
+            return ("!" + term->var + "." + termToString(term->lTerm));
+        case APPLICATION:
+            return ("(" + termToString(term->lTerm) + ")" +
+                    termToString(term->rTerm));
+        case PRIMARY:
+            string res = term->var;
+            if (term->rTerm != NULL) res += " " + termToString(term->rTerm);
+            return res;
+            break;
     }
+
+    syntaxError();
 }
 
 bool Parser::termToBool(Term *term) {
@@ -384,19 +425,113 @@ bool Parser::termToBool(Term *term) {
         term = term->lTerm;
     }
 
-    if (term->lTerm->type != ABSTRACTION || term->lTerm->lTerm->type != PRIMARY)
+    if (term->lTerm->type != ABSTRACTION ||
+        term->lTerm->lTerm->type != PRIMARY ||
+        term->lTerm->lTerm->rTerm != NULL) {
         runtimeError();
+    }
 
-    string varA = term->var;
-    string varB = term->lTerm->var;
-    string varC = term->lTerm->lTerm->var;
+    Term *outerAbs = term;
+    Term *innerAbs = term->lTerm;
+    Term *primary = term->lTerm->lTerm;
+    string varA = outerAbs->var;
+    string varB = innerAbs->var;
+    string varC = primary->var;
 
     if (varA.compare(varC) == 0)
         return true;
     else if (varB.compare(varC) == 0)
         return false;
-    else
-        runtimeError();
+
+    runtimeError();
 }
 
-int Parser::termToNum(Term *term) { return 0; }
+int Parser::termToNum(Term *term) {
+    if (term == NULL) runtimeError();
+
+    if (term->type == PRIMARY)
+        runtimeError();
+    else if (term->type == APPLICATION) {
+        if (term->lTerm->type != ABSTRACTION || term->rTerm != NULL)
+            runtimeError();
+
+        term = term->lTerm;
+    }
+
+    if (term->lTerm->type != ABSTRACTION || term->lTerm->lTerm->type != PRIMARY)
+        runtimeError();
+
+    int num = 0;
+    Term *outerAbs = term;
+    Term *innerAbs = term->lTerm;
+    Term *primary = term->lTerm->lTerm;
+    term = primary;
+
+    if (outerAbs->var.compare(innerAbs->var) == 0) runtimeError();
+
+    while (term->var.compare(outerAbs->var) == 0) {
+        num++;
+        term = term->rTerm;
+
+        if (term == NULL) runtimeError();
+
+        switch (term->type) {
+            case PRIMARY:
+                if (term->var.compare(innerAbs->var) != 0) runtimeError();
+                break;
+            case APPLICATION:
+                if (term->rTerm != NULL) runtimeError();
+                term = term->lTerm;
+                if (term->type != PRIMARY) runtimeError();
+                break;
+            case ABSTRACTION:
+                runtimeError();
+                break;
+        }
+    }
+
+    if (term->var.compare(innerAbs->var) != 0 || term->rTerm != NULL)
+        runtimeError();
+
+    return num;
+}
+
+Term *Parser::numToTerm(int num) {
+    Term *outerAbs = new Term;
+    Term *innerAbs = new Term;
+    Term *basePrimary = new Term;
+
+    outerAbs->type = ABSTRACTION;
+    outerAbs->var = nextRenamedVar();
+    outerAbs->lTerm = innerAbs;
+    outerAbs->rTerm = NULL;
+
+    innerAbs->type = ABSTRACTION;
+    innerAbs->var = nextRenamedVar();
+    innerAbs->lTerm = basePrimary;
+    innerAbs->rTerm = NULL;
+
+    basePrimary->type = PRIMARY;
+    basePrimary->var = innerAbs->var;
+    basePrimary->lTerm = NULL;
+    basePrimary->rTerm = NULL;
+
+    while (num > 0) {
+        Term *term = new Term;
+        term->type = APPLICATION;
+        term->var = "";
+        term->lTerm = innerAbs->lTerm;
+        term->rTerm = NULL;
+
+        Term *primary = new Term;
+        primary->type = PRIMARY;
+        primary->var = outerAbs->var;
+        primary->lTerm = NULL;
+        primary->rTerm = term;
+
+        innerAbs->lTerm = primary;
+        num--;
+    }
+
+    return outerAbs;
+}

@@ -45,6 +45,7 @@ class Parser {
     string parsePrimary();
     void parseComment();
     bool betaReduce(Term *term);
+    bool collapseParentheses(Term *term);
     void getFreeVars(Term *term, map<string, bool> &freeVars);
     void alphaRename(Term *term, const map<string, bool> &freeVars,
                      map<string, string> &renames);
@@ -55,6 +56,7 @@ class Parser {
     string termToString(Term *term);
     bool termToBool(Term *term);
     int termToNum(Term *term);
+    Term *numToTerm(int num);
 };
 
 #endif

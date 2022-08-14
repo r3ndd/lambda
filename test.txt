@@ -7,5 +7,13 @@ print (!x.!y.x) !y.y;
 
 print true a b;
 print false a b;
+printbool true;
+printbool false;
 printbool true false true;
 printbool false false true;
+
+printnum !f.!x.x;
+printnum !f.!x.f x;
+printnum !f.!x.f (f x);
+printnum !f.!x.f (f (x));
+printnum 5;
