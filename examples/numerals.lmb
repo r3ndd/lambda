@@ -1,0 +1,9 @@
+/* Numerals */
+import math;
+
+print 2; /* Prints (!a0.!a1.a0 (a0 (a1)))*/
+printnum 5; /* Prints 5 */
+printnum (!a2.!a3.a2 (a2 (a3))); /* Prints 2 */
+printnum succ 3; /* Prints 4 */
+printnum pred 2; /* Prints 1 */
+printnum add 3 5; /* Prints 8 */

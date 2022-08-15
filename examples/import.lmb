@@ -1,0 +1,7 @@
+/* Library imports */
+import bool;
+
+print true a b; /* Prints (a) */
+printbool true; /* Prints true */
+printbool false; /* Prints false */
+printbool true false true; /* Prints false */

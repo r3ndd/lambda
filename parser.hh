@@ -30,7 +30,7 @@ class Parser {
     map<string, Term *> definitions;
     vector<Term *> reductions;
     vector<PrintType> printTypes;
-    int renameCount;
+    int renameCount = 0;
 
     void importError(string msg);
     void syntaxError(int lineNum, string msg);

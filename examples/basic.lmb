@@ -1,0 +1,3 @@
+/* A basic example */
+let true = !x.!y.x;
+print true a b; /* Prints (a) */

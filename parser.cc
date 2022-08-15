@@ -304,6 +304,7 @@ bool Parser::betaReduce(Term *term) {
             }
             break;
         case ABSTRACTION:
+            changed |= betaReduce(term->lTerm);
             break;
     }
 
@@ -331,6 +332,15 @@ bool Parser::collapseParentheses(Term *term) {
                 delete oldTerm;
 
                 changed = true;
+            } else if (term->lTerm->type == APPLICATION &&
+                       term->lTerm->lTerm->type == PRIMARY) {
+                Term *oldTerm = term->lTerm->lTerm;
+                term->lTerm->type = oldTerm->type;
+                term->lTerm->var = oldTerm->var;
+                term->lTerm->lTerm = oldTerm->lTerm;
+                delete oldTerm;
+
+                changed = true;
             }
 
             changed |= collapseParentheses(term->lTerm);
@@ -340,6 +350,27 @@ bool Parser::collapseParentheses(Term *term) {
             changed |= collapseParentheses(term->rTerm);
             break;
         case ABSTRACTION:
+            if (term->lTerm->type == APPLICATION &&
+                term->lTerm->rTerm == NULL) {
+                Term *oldTerm = term->lTerm->lTerm;
+                term->lTerm->type = oldTerm->type;
+                term->lTerm->var = oldTerm->var;
+                term->lTerm->lTerm = oldTerm->lTerm;
+                term->lTerm->rTerm = oldTerm->rTerm;
+                delete oldTerm;
+
+                changed = true;
+            } else if (term->lTerm->type == APPLICATION &&
+                       term->lTerm->lTerm->type == PRIMARY) {
+                Term *oldTerm = term->lTerm->lTerm;
+                term->lTerm->type = oldTerm->type;
+                term->lTerm->var = oldTerm->var;
+                term->lTerm->lTerm = oldTerm->lTerm;
+                delete oldTerm;
+
+                changed = true;
+            }
+
             changed |= collapseParentheses(term->lTerm);
             break;
     }
@@ -532,8 +563,8 @@ int Parser::termToNum(Term *term) {
 
     int num = 0;
     Term *outerAbs = term;
-    Term *innerAbs = term->lTerm;
-    Term *primary = term->lTerm->lTerm;
+    Term *innerAbs = outerAbs->lTerm;
+    Term *primary = innerAbs->lTerm;
     term = primary;
 
     if (outerAbs->var.compare(innerAbs->var) == 0)
@@ -553,7 +584,9 @@ int Parser::termToNum(Term *term) {
             case APPLICATION:
                 if (term->rTerm != NULL)
                     runtimeError("Unable to convert term to number");
+
                 term = term->lTerm;
+
                 if (term->type != PRIMARY)
                     runtimeError("Unable to convert term to number");
                 break;
