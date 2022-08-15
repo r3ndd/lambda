@@ -21,6 +21,7 @@ struct Term {
 
 class Parser {
    public:
+    bool OpenFile(string filename);
     void ParseInput();
     void ReduceAndPrint();
 
@@ -31,11 +32,15 @@ class Parser {
     vector<PrintType> printTypes;
     int renameCount;
 
+    void importError(string msg);
     void syntaxError(int lineNum, string msg);
     void runtimeError(string msg);
     void expect(TokenType type, string msg);
     void checkType(Token token, TokenType type, string msg);
     void parseProgram();
+    void parseImportList();
+    void parseImport();
+    string parseFilename();
     void parseDefList();
     void parseDef();
     void parseReductionList();

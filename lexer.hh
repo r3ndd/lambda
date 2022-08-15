@@ -19,6 +19,8 @@ typedef enum {
     RPAREN,
     ID,
     NUM,
+    IMPORT,
+    HEADER_EXTENSION,
 } TokenType;
 
 class Token {
@@ -32,10 +34,11 @@ class Token {
 
 class Lexer {
    public:
+    bool OpenFile(string filename);
     Token GetToken();
     TokenType UngetToken(Token);
     Token Peek();
-    void Expect(TokenType);
+    void UnshiftString(string str);
     Lexer();
 
    private:

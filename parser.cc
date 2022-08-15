@@ -1,8 +1,17 @@
+
 #include "parser.hh"
 
+#include <fstream>
 #include <iostream>
 
+#include "libraries.hh"
+
 using namespace std;
+
+void Parser::importError(string msg) {
+    cout << "IMPORT ERROR: " << msg << "\n";
+    exit(1);
+}
 
 void Parser::syntaxError(int lineNum, string msg) {
     cout << "SYNTAX ERROR (" << lineNum << "): " << msg << "\n";
@@ -22,6 +31,8 @@ void Parser::expect(TokenType type, string msg) {
 void Parser::checkType(Token token, TokenType type, string msg) {
     if (token.tokenType != type) syntaxError(token.lineNum, msg);
 }
+
+bool Parser::OpenFile(string filename) { return lexer.OpenFile(filename); }
 
 void Parser::ParseInput() { parseProgram(); }
 
@@ -53,8 +64,7 @@ void Parser::ReduceAndPrint() {
 
 void Parser::parseProgram() {
     Token t = lexer.Peek();
-
-    if (t.tokenType == LET) parseDefList();
+    if (t.tokenType == LET || t.tokenType == IMPORT) parseDefList();
 
     parseReductionList();
     expect(END_OF_FILE, "Expected end of file");
@@ -64,22 +74,81 @@ void Parser::parseDefList() {
     parseDef();
 
     Token t = lexer.Peek();
-    if (t.tokenType == LET) parseDefList();
+    if (t.tokenType == LET || t.tokenType == IMPORT) parseDefList();
 }
 
 void Parser::parseDef() {
-    expect(LET, "Expected 'let'");
+    Token t = lexer.Peek();
 
-    Token t = lexer.GetToken();
-    checkType(t, ID, "Expected definition name");
-    string var = t.lexeme;
+    if (t.tokenType == IMPORT) {
+        parseImport();
+    } else {
+        expect(LET, "Expected 'let'");
 
-    expect(EQUAL, "Expected '='");
+        Token t = lexer.GetToken();
+        checkType(t, ID, "Expected definition name");
+        string var = t.lexeme;
 
-    Term *term = parseTerm();
-    definitions[var] = term;
+        expect(EQUAL, "Expected '='");
+
+        Term *term = parseTerm();
+        definitions[var] = term;
+
+        expect(SEMICOLON, "Expected semicolon");
+    }
+}
+
+void Parser::parseImport() {
+    string importName;
+    bool isFile;
+
+    expect(IMPORT, "Expected 'import'");
+
+    Token id = lexer.GetToken();
+    checkType(id, ID, "Expected import name");
+
+    Token t = lexer.Peek();
+    if (t.tokenType == DOT) {
+        lexer.UngetToken(id);
+        importName = parseFilename();
+        isFile = true;
+    } else {
+        importName = id.lexeme;
+        isFile = false;
+    }
 
     expect(SEMICOLON, "Expected semicolon");
+
+    if (isFile) {
+        ifstream file;
+        file.open(importName);
+
+        if (!file.is_open())
+            importError(importName + " not found in local directory");
+
+        string fileData = "";
+        char c;
+
+        while (file.get(c)) fileData += c;
+        lexer.UnshiftString(fileData);
+    } else {
+        if (LIBRARIES.find(importName) == LIBRARIES.end())
+            importError(importName + " is not a native library");
+
+        lexer.UnshiftString(LIBRARIES.at(importName));
+    }
+}
+
+string Parser::parseFilename() {
+    Token id = lexer.GetToken();
+    checkType(id, ID, "Expected import file name");
+
+    expect(DOT, "Expected '.");
+
+    Token ext = lexer.GetToken();
+    checkType(ext, HEADER_EXTENSION, "Expected header extension");
+
+    return id.lexeme + "." + ext.lexeme;
 }
 
 void Parser::parseReductionList() {

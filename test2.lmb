@@ -1,0 +1,6 @@
+import bool.lmh;
+
+print true a b;
+print false a b;
+printbool true;
+printbool false;

@@ -1,18 +1,23 @@
 #ifndef __INPUT_H__
 #define __INPUT_H__
 
+#include <fstream>
 #include <string>
 #include <vector>
 
+using namespace std;
+
 class Input {
    public:
-    void GetChar(char &);
-    char UngetChar(char);
-    std::string UngetString(std::string);
+    bool OpenFile(string filename);
+    void GetChar(char& c);
+    char UngetChar(char c);
+    string UngetString(string s);
     bool AtEnd();
 
    private:
-    std::vector<char> buffer;
+    ifstream file;
+    vector<char> buffer;
 };
 
 #endif
