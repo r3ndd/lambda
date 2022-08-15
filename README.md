@@ -11,12 +11,12 @@
 - Comments
 
 ## Examples
-```
+```js
 /* A basic example */
 let first = !x.!y.x;
 print first a b; /* Prints (a) */
 ```
-```
+```js
 /* Library imports */
 import bool;
 
@@ -25,7 +25,7 @@ printbool true; /* Prints true */
 printbool false; /* Prints false */
 printbool true false true; /* Prints false */
 ```
-```
+``` js
 /* Numerals */
 import math;
 
@@ -42,3 +42,8 @@ printnum add 3 5; /* Prints 8 */
 
 ## Usage
 `./lambda file.lmb`
+Write modules in same directory as base `.lmb` file and save with the `.lmh` extension.
+Import with
+```js
+import modulename.lmh;
+```
